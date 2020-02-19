@@ -20,51 +20,42 @@ headers = {
 
 
 class BaiduIndex:
-    params_queue = queue.Queue()
+    # 切分关键词list，每5个一组
+    def split_keywords(self, keywords: list) -> [list]:
+        return [keywords[i*5: (i+1)*5] for i in range(math.ceil(len(keywords)/5))]
 
-    def __init__(self, keywords: list, start_date: str, end_date: str):
-        self.keywords = keywords
-        self.init_queue(start_date, end_date, keywords)
-
-    def get_index(self):
-        while True:
-            try:
-                params_data = self.params_queue.get(timeout=1)
-                for area in AREA_CODE:
-                    self.area = area
-                    encrypt_datas, uniqid = self.get_encrypt_datas(
-                        start_date=params_data['start_date'],
-                        end_date=params_data['end_date'],
-                        keywords=params_data['keywords']
-                    )
-                    key = self.get_key(uniqid)
-                    for encrypt_data in encrypt_datas:
-                        for kind in KIND:
-                            encrypt_data[kind]['data'] = self.decrypt(
-                                key, encrypt_data[kind]['data'])
-                        for formated_data in self.format_data(encrypt_data):
-                            yield formated_data
-            except requests.Timeout:
-                self.params_queue.put(params_data)
-            except queue.Empty:
+    # 切分时间段
+    def get_time_range_list(self, start, end):
+        dates_list = []
+        start_date = datetime.datetime.strptime(start, '%Y-%m-%d')
+        end_date = datetime.datetime.strptime(end, '%Y-%m-%d')
+        while 1:
+            temp_date = start_date + datetime.timedelta(days=300)
+            if temp_date > end_date:
+                dates_list.append((start_date, end_date))
                 break
-            self.sleep()
+            dates_list.append((start_date, temp_date))
+            start_date = temp_date + datetime.timedelta(days=1)
+        return dates_list
 
-    def init_queue(self, start_date, end_date, keywords):
+    def init_params(self, start_date, end_date, keywords):
+        http_params = queue.Queue()
         keywords_list = self.split_keywords(keywords)
-        time_range_list = self.get_time_range_list(start_date, end_date)
-        for start_date, end_date in time_range_list:
+        dates_list = self.get_time_range_list(start_date, end_date)
+        for start_date, end_date in dates_list:
             for keywords in keywords_list:
                 params = {
                     'keywords': keywords,
                     'start_date': start_date,
                     'end_date': end_date
                 }
-                self.params_queue.put(params)
+                http_params.put(params)
+        return http_params
+        
+    def __init__(self, keywords: list, start_date: str, end_date: str):
+        self.keywords = keywords
+        self.http_params = self.init_params(start_date, end_date, keywords)
 
-    # 分割关键词，一次对话进行5个
-    def split_keywords(self, keywords: list) -> [list]:
-        return [keywords[i*5: (i+1)*5] for i in range(math.ceil(len(keywords)/5))]
 
     def get_encrypt_datas(self, start_date, end_date, keywords):
         request_args = {
@@ -117,21 +108,7 @@ class BaiduIndex:
         if response.status_code != 200:
             raise requests.Timeout
         return response.text
-
-    # 切分时间段
-    def get_time_range_list(self, startdate, enddate):
-        date_range_list = []
-        startdate = datetime.datetime.strptime(startdate, '%Y-%m-%d')
-        enddate = datetime.datetime.strptime(enddate, '%Y-%m-%d')
-        while 1:
-            tempdate = startdate + datetime.timedelta(days=300)
-            if tempdate > enddate:
-                date_range_list.append((startdate, enddate))
-                break
-            date_range_list.append((startdate, tempdate))
-            startdate = tempdate + datetime.timedelta(days=1)
-        return date_range_list
-
+        
     # 对某个关键词，得到一个串，这个串表示这种kind下所有日期下的index
     def decrypt(self, key, data):
         a = key
@@ -148,3 +125,28 @@ class BaiduIndex:
     def sleep(self):
         sleep_time = random.choice(range(50, 90)) * 0.1
         time.sleep(sleep_time)
+
+    def get_index(self):
+        while True:
+            try:
+                params_data = self.http_params.get(timeout=1)
+                for area in AREA_CODE:
+                    self.area = area
+                    encrypt_datas, uniqid = self.get_encrypt_datas(
+                        start_date=params_data['start_date'],
+                        end_date=params_data['end_date'],
+                        keywords=params_data['keywords']
+                    )
+                    key = self.get_key(uniqid)
+                    for encrypt_data in encrypt_datas:
+                        for kind in KIND:
+                            encrypt_data[kind]['data'] = self.decrypt(
+                                key, encrypt_data[kind]['data'])
+                        for formated_data in self.format_data(encrypt_data):
+                            yield formated_data
+            except requests.Timeout:
+                self.http_params.put(params_data)
+            except queue.Empty:
+                break
+            self.sleep()
+

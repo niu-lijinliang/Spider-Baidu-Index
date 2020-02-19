@@ -3,16 +3,17 @@ import openpyxl
 
 from config import KEYWORDS, START_DATE, END_DATE
 
+def createSheet(table):
+    sheet = table.active
+    sheet.title = 'Baidu Index'
+    sheet_head = ['关键词', '数据源', '日期', '地区', '指数']
+    # the head of the sheet
+    sheet.append(sheet_head)
+    return sheet
 
 if __name__ == "__main__":
     table = openpyxl.Workbook()
-    sheet = table.active
-    sheet.title = 'Baidu Index'
-    sheet['A1'] = '关键词'
-    sheet['B1'] = '数据源'
-    sheet['C1'] = '日期'
-    sheet['D1'] = '地区'
-    sheet['E1'] = '指数'
+    sheet = createSheet(table)
 
     baidu_index = BaiduIndex(KEYWORDS, START_DATE, END_DATE)
 
