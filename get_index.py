@@ -8,7 +8,7 @@ import json
 
 import requests
 
-from config import COOKIE, AREA_CODE, KIND
+from config import COOKIE, AREA_CODE, DATA_SOURCES
 
 
 headers = {
@@ -56,6 +56,12 @@ class BaiduIndex:
         self.keywords = keywords
         self.http_params = self.init_params(start_date, end_date, keywords)
 
+    def http_get(self, url, cookies=COOKIE):
+        headers['Cookie'] = cookies
+        response = requests.get(url, headers=headers, timeout=5)
+        if response.status_code != 200:
+            raise requests.Timeout
+        return response.text
 
     def get_encrypt_datas(self, start_date, end_date, keywords):
         request_args = {
@@ -72,7 +78,7 @@ class BaiduIndex:
         encrypt_datas = []
         for single_data in datas['data']['userIndexes']:
             encrypt_datas.append(single_data)
-        return (encrypt_datas, uniqid)
+        return encrypt_datas, uniqid
 
     def get_key(self, uniqid):
         url = 'http://index.baidu.com/Interface/api/ptbk?uniqid=%s' % uniqid
@@ -88,13 +94,12 @@ class BaiduIndex:
         start_date = data['all']['startDate']
         cur_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')
         for i in range(time_length):
-            for kind in KIND:
-                index_datas = data[kind]['data']
-                index_data = index_datas[i] if len(
-                    index_datas) != 1 else index_datas[0]
+            for data_source in DATA_SOURCES:
+                index_datas = data[data_source]['data']
+                index_data = index_datas[i] if len(index_datas) != 1 else index_datas[0]
                 formated_data = {
                     'keyword': keyword,
-                    'type': KIND[kind],
+                    'type': DATA_SOURCES[data_source],
                     'date': cur_date.strftime('%Y-%m-%d'),
                     'area': self.area,
                     'index': index_data if index_data else '0'
@@ -102,14 +107,6 @@ class BaiduIndex:
                 yield formated_data
             cur_date += datetime.timedelta(days=1)
 
-    def http_get(self, url, cookies=COOKIE):
-        headers['Cookie'] = cookies
-        response = requests.get(url, headers=headers, timeout=5)
-        if response.status_code != 200:
-            raise requests.Timeout
-        return response.text
-        
-    # 对某个关键词，得到一个串，这个串表示这种kind下所有日期下的index
     def decrypt(self, key, data):
         a = key
         i = data
@@ -139,9 +136,9 @@ class BaiduIndex:
                     )
                     key = self.get_key(uniqid)
                     for encrypt_data in encrypt_datas:
-                        for kind in KIND:
-                            encrypt_data[kind]['data'] = self.decrypt(
-                                key, encrypt_data[kind]['data'])
+                        for data_source in DATA_SOURCES:
+                            encrypt_data[data_source]['data'] = self.decrypt(
+                                key, encrypt_data[data_source]['data'])
                         for formated_data in self.format_data(encrypt_data):
                             yield formated_data
             except requests.Timeout:
@@ -149,4 +146,3 @@ class BaiduIndex:
             except queue.Empty:
                 break
             self.sleep()
-

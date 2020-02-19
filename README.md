@@ -28,7 +28,7 @@ You can provide any number of `KEYWORDS`, but this will only crawl 5 keywords at
 
 `DATE` needs to be no earlier than 2011-1-1
 
-`KIND` corresponds to 3 data sources on Baidu 
+`DATA_SOURCES` corresponds to 3 data sources on Baidu 
 Index
 
 ## Run main.py
