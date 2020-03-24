@@ -19,7 +19,7 @@ if __name__ == "__main__":
     baidu_index = BaiduIndex(KEYWORDS, START_DATE, END_DATE)
 
     for index_data in baidu_index.get_index():
-        print('Wait a moment')
+        print('Crawlling, wait a moment please.')
         data = [index_data['keyword'], index_data['type'],
                 index_data['date'], index_data['area'], index_data['index']]
         sheet.append(data)
