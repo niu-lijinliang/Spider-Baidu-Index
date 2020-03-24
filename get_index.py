@@ -20,11 +20,11 @@ headers = {
 
 
 class BaiduIndex:
-    # 切分关键词list，每5个一组
+    # split the keywords list, 5 for a process
     def split_keywords(self, keywords: list) -> [list]:
         return [keywords[i*5: (i+1)*5] for i in range(math.ceil(len(keywords)/5))]
 
-    # 切分时间段
+    # split time range
     def get_time_range_list(self, start, end):
         dates_list = []
         start_date = datetime.datetime.strptime(start, '%Y-%m-%d')
@@ -87,7 +87,6 @@ class BaiduIndex:
         key = datas['data']
         return key
 
-    # 把数据格式化成输出的形式
     def format_data(self, data):
         keyword = str(data['word'])
         time_length = len(data['all']['data'])
@@ -118,7 +117,6 @@ class BaiduIndex:
             s.append(n[i[r]])
         return ''.join(s).split(',')
 
-    # 单账号抓取过快会掉线，简易地反反爬虫
     def sleep(self):
         sleep_time = random.choice(range(50, 90)) * 0.1
         time.sleep(sleep_time)
