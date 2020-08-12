@@ -64,11 +64,14 @@ class BaiduIndex:
         return response.text
 
     def get_encrypt_datas(self, start_date, end_date, keywords):
+        word_list = []
+        for keyword in keywords:
+            word_list.append([{'name': keyword, 'wordType': 1}])
         request_args = {
-            'word': ','.join(keywords),
+            'word': json.dumps(word_list),
             'startDate': start_date.strftime('%Y-%m-%d'),
             'endDate': end_date.strftime('%Y-%m-%d'),
-            'area': AREA_CODE[self.area]
+            'area': self.area
         }
         url = 'http://index.baidu.com/api/SearchApi/index?' + \
             urlencode(request_args)
